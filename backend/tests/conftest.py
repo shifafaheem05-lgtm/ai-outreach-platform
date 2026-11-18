@@ -13,6 +13,14 @@ os.environ["OPENAI_BASE_URL"] = "https://api.example.invalid/v1"
 import pytest
 from fastapi.testclient import TestClient
 
+# A leftover SQLite file from an earlier run (Windows keeps it locked, so it may not be deleted)
+# would make fixed test emails collide. Always start from a clean file.
+if os.environ["DATABASE_URL"].startswith("sqlite"):
+    try:
+        os.remove("test_suite.db")
+    except FileNotFoundError:
+        pass
+
 
 @pytest.fixture(scope="session")
 def client():
@@ -20,6 +28,9 @@ def client():
 
     with TestClient(app) as c:
         yield c
+    from app.db.session import engine
+
+    engine.dispose()  # release the file so Windows can delete it
     if os.environ["DATABASE_URL"].startswith("sqlite"):
         try:
             os.remove("test_suite.db")
