@@ -1,0 +1,50 @@
+import {
+  BarChart3,
+  Bot,
+  Brain,
+  FileSearch,
+  Inbox,
+  LayoutDashboard,
+  Mail,
+  PenLine,
+  Plug,
+  Repeat,
+  Search,
+  Settings,
+  Users,
+  Video,
+} from 'lucide-react'
+
+// `phase` is when the page's real functionality ships (see ARCHITECTURE.md roadmap).
+export const NAV = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, phase: 1 },
+  { to: '/lead-discovery', label: 'Lead Discovery', icon: Search, phase: 2 },
+  { to: '/lead-research', label: 'Lead Research', icon: FileSearch, phase: 2 },
+  { to: '/lead-scoring', label: 'Lead Scoring', icon: Brain, phase: 2 },
+  { to: '/campaigns', label: 'Email Campaigns', icon: Mail, phase: 3 },
+  { to: '/email-writer', label: 'AI Email Writer', icon: PenLine, phase: 3 },
+  { to: '/video-studio', label: 'Loom Video Studio', icon: Video, phase: 4 },
+  { to: '/follow-ups', label: 'Follow-up Automation', icon: Repeat, phase: 5 },
+  { to: '/inbox', label: 'Inbox & Replies', icon: Inbox, phase: 5 },
+  { to: '/crm', label: 'CRM', icon: Users, phase: 6 },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, phase: 6 },
+  { to: '/integrations', label: 'Integrations', icon: Plug, phase: 3 },
+  { to: '/settings', label: 'Settings', icon: Settings, phase: 3 },
+  { to: '/assistant', label: 'AI Assistant', icon: Bot, phase: 6 },
+]
+
+export const PAGE_INFO = {
+  '/lead-discovery': 'Import leads from CSV or licensed APIs (Apollo, Hunter, Google Places), remove duplicates, and verify email addresses.',
+  '/lead-research': 'Generate sourced research reports from each prospect’s public website: products, likely pain points, and where your services fit.',
+  '/lead-scoring': 'Score every prospect 0–100 and tier them Hot, Warm or Cold using firmographics, research fit and engagement.',
+  '/campaigns': 'Build campaigns, schedule sends, set follow-up intervals, and approve the launch. Sending limits, suppression and unsubscribe handling are enforced.',
+  '/email-writer': 'Generate personalized short, medium and detailed emails with unique subject lines and follow-ups, in your chosen tone.',
+  '/video-studio': 'Create personalized 60–90 second video scripts, recording checklists, thumbnails and descriptions. Loom has no public upload API, so you record in Loom and paste the link back.',
+  '/follow-ups': 'Detect unanswered emails, draft context-aware follow-ups and suggested timing. Sequences stop automatically on reply, bounce or opt-out.',
+  '/inbox': 'Sync replies, classify them (Interested, Meeting Requested, Out of Office…) and approve suggested responses before anything is sent.',
+  '/crm': 'Prospect profiles, conversation history, research, video links, notes, tags and status tracking, with CSV and Excel export.',
+  '/analytics': 'Delivery, bounce, reply and positive-response rates, meetings generated and per-campaign performance.',
+  '/integrations': 'Connect Gmail or SMTP, your LLM provider, lead sources and email verification. Credentials are encrypted at rest.',
+  '/settings': 'Organization details (including the physical address required in every email), sending limits, team members and roles.',
+  '/assistant': 'Command the platform in plain language. Anything that contacts a prospect pauses for your approval first.',
+}
