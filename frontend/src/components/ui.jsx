@@ -81,7 +81,7 @@ export async function downloadFile(path, filename) {
   const res = await api.get(path, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data)
   Object.assign(document.createElement('a'), { href: url, download: filename }).click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export const copyText = (text) => navigator.clipboard?.writeText(text)

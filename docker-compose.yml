@@ -1,36 +1,46 @@
+# Production-style stack: app + PostgreSQL. Required values must be supplied (see .env.example); the stack refuses to start without them.
+#   export SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(48))")
+#   export ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+#   export POSTGRES_PASSWORD=$(python -c "import secrets;print(secrets.token_urlsafe(24))")
+#   export PUBLIC_BASE_URL=https://outreach.example.com
 services:
   app:
     build: .
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/ai_outreach_pro
-      REDIS_URL: redis://redis:6379/0
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg2://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/ai_outreach_pro
       AUTO_CREATE_TABLES: "false"
-      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
-      CORS_ORIGINS: ${PUBLIC_BASE_URL:-http://localhost:8000}
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL}
+      CORS_ORIGINS: ${PUBLIC_BASE_URL}
+      SEED_DEMO_DATA: "false"
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ai_outreach_pro
-    ports:
-      - "5432:5432"
+    # no published port: only the app container can reach the database
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_outreach_pro"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
   pgdata:

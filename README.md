@@ -46,14 +46,24 @@ npm run dev                            # http://localhost:5173
 Demo login (seeded when `SEED_DEMO_DATA=true`): `demo@aioutreach.pro` / `Demo1234!`
 All demo companies and contacts are fictional (`.example` domains).
 
-## With Docker (PostgreSQL + Redis)
+## Deployment (Docker, PostgreSQL)
 
 ```bash
-docker compose up -d db redis
-cp .env.example backend/.env           # keep the PostgreSQL DATABASE_URL
+export SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(48))")
+export ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+export POSTGRES_PASSWORD=$(python -c "import secrets;print(secrets.token_urlsafe(24))")
+export PUBLIC_BASE_URL=https://outreach.example.com     # must be reachable by recipients (unsubscribe links)
+docker compose up -d --build
 ```
 
-Then run the backend and frontend as above.
+- `docker compose` refuses to start if any of those four values is missing. Save them somewhere safe: losing `ENCRYPTION_KEY` makes stored mailbox passwords unreadable.
+- The container runs `alembic upgrade head` on start, as a non-root user, with a health check at `/api/health`. PostgreSQL is not exposed to the host.
+- With `APP_ENV=production` the app **refuses to start** on: weak `SECRET_KEY`, missing/invalid `ENCRYPTION_KEY`, `SEED_DEMO_DATA=true`, SQLite, or a localhost `PUBLIC_BASE_URL`.
+- Put it behind HTTPS (Caddy, nginx, a cloud load balancer). If the proxy is not on the container's loopback, set `FORWARDED_ALLOW_IPS` to its address so login rate-limiting sees real client IPs.
+- **Run exactly one app process/replica.** The e-mail scheduler lives inside it. Sends are claimed atomically so an accidental second process will not double-send, but it is not a supported scale-out setup.
+- Create your first admin by registering on the login page, then set `ALLOW_REGISTRATION=false` to close sign-up; add colleagues in Settings > Team.
+- Backups: `docker compose exec db pg_dump -U postgres ai_outreach_pro > backup.sql`
+- Upgrades: pull, `docker compose up -d --build` (migrations run automatically).
 
 ## Configuration
 
@@ -69,10 +79,12 @@ In production set `SECRET_KEY` and `ENCRYPTION_KEY` explicitly and set `SEED_DEM
 ## Tests
 
 ```bash
-cd backend && python -m pytest
+cd backend && pip install -r requirements-dev.txt
+pytest -q                                   # SQLite (default)
+TEST_DATABASE_URL=postgresql+psycopg2://user:pw@localhost/empty_db pytest -q   # PostgreSQL
+# browser end-to-end (server running with demo data; needs `npm i playwright`):
+BASE_URL=http://localhost:8000 node scripts/e2e_smoke.mjs
 ```
-
-Phase 1 covers login, token refresh, role/auth guards, dashboard aggregates and tenant isolation between organizations.
 
 ## Compliance notes
 
@@ -85,18 +97,14 @@ Phase 1 covers login, token refresh, role/auth guards, dashboard aggregates and 
 
 ## Going live: important notes
 
+- Security notes: sessions can be revoked (changing a password signs out every other device); mailbox hosts must be public addresses in production; see `docs/PROJECT_ANALYSIS.md` and `docs/CHANGES.md`.
+
 - **Gmail**: turn on 2-Step Verification, create a 16-character App Password, add it on the Integrations page, then use "Test connection".
 - **PUBLIC_BASE_URL** in `.env` must be a URL recipients can reach (not localhost), otherwise unsubscribe links in real emails will not work.
 - **Compliance**: set your postal address and sender name in Settings; sending is blocked until you do. Opt-outs and bounces are suppressed permanently.
 - **Approval flow**: campaign drafts -> submit -> manager approves -> start. One-off sends and inbox replies need explicit confirmation. The assistant never sends.
-- **Production**: set a strong `SECRET_KEY` (the app refuses to start otherwise), use PostgreSQL, run `alembic upgrade head`, and put it behind HTTPS.
+- **Production**: see **Deployment** above (the app refuses to start with unsafe settings).
 - **Loom**: the app stores links and scripts; it cannot record or upload to Loom for you.
 - **Email checks** confirm the domain accepts mail, not that the mailbox exists.
-
-## Tests
-
-```bash
-cd backend && pytest -q      # 59 tests
-```
 
 Single-server build: `cd frontend && npm run build`, then run uvicorn; the app serves the UI at http://localhost:8000.

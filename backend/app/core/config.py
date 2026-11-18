@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    secret_key: str = "dev-secret-change-me"
+    secret_key: str = "dev-secret-change-me-not-for-production"
     encryption_key: str = ""
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 14
@@ -25,10 +25,36 @@ class Settings(BaseSettings):
     send_delay_min: float = 20.0  # randomised spacing between sends, seconds
     send_delay_max: float = 60.0
     login_max_failures: int = 5  # per IP+email per 15 minutes
+    allow_registration: bool = True  # set false on private deployments; admins then add users in Settings
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+def production_problems(cfg: "Settings") -> list[str]:
+    """Misconfigurations that must stop the app from starting with APP_ENV=production."""
+    if cfg.app_env != "production":
+        return []
+    problems = []
+    if cfg.secret_key.startswith(("change-me", "dev-secret")) or len(cfg.secret_key) < 32:
+        problems.append("SECRET_KEY must be a long random string (32+ characters)")
+    if not cfg.encryption_key:
+        problems.append("ENCRYPTION_KEY is required (stored mailbox passwords are encrypted with it)")
+    else:
+        try:
+            from cryptography.fernet import Fernet
+
+            Fernet(cfg.encryption_key.encode())
+        except Exception:  # noqa: BLE001
+            problems.append("ENCRYPTION_KEY is not a valid Fernet key")
+    if cfg.seed_demo_data:
+        problems.append("SEED_DEMO_DATA must be false (the demo account has a publicly known password)")
+    if cfg.database_url.startswith("sqlite"):
+        problems.append("DATABASE_URL must point to PostgreSQL, not SQLite")
+    if cfg.public_base_url.startswith("http://localhost") or cfg.public_base_url.startswith("http://127."):
+        problems.append("PUBLIC_BASE_URL must be a public https URL (unsubscribe links are built from it)")
+    return problems
 
 
 @lru_cache

@@ -22,11 +22,11 @@ def get_db() -> Iterator[Session]:
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    user_id = decode_token(token, "access")
-    if user_id is None:
+    decoded = decode_token(token, "access")
+    if decoded is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
-    user = db.get(User, user_id)
-    if not user or not user.is_active:
+    user = db.get(User, decoded[0])
+    if not user or not user.is_active or user.token_version != decoded[1]:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
     return user
 

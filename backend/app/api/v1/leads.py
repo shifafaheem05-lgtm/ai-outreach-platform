@@ -210,13 +210,14 @@ def list_leads(
     page = max(1, page)
     cond = [Lead.org_id == user.org_id]
     if q:
-        like = f"%{q.strip()}%"
+        term = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")  # literal match
+        like = f"%{term}%"
         cond.append(
             or_(
-                Lead.company_name.ilike(like),
-                Lead.contact_name.ilike(like),
-                Lead.email.ilike(like),
-                Lead.industry.ilike(like),
+                Lead.company_name.ilike(like, escape="\\"),
+                Lead.contact_name.ilike(like, escape="\\"),
+                Lead.email.ilike(like, escape="\\"),
+                Lead.industry.ilike(like, escape="\\"),
             )
         )
     if tier:

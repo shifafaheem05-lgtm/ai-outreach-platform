@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 
-from jose import JWTError, jwt
+import jwt
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -39,11 +39,14 @@ def make_unsubscribe_token(org_id: int, email: str) -> str:
 def read_unsubscribe_token(token: str) -> tuple[int, str] | None:
     try:
         data = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-    except JWTError:
+    except jwt.PyJWTError:
         return None
     if data.get("type") != "unsub":
         return None
-    return int(data["org"]), str(data["email"])
+    try:
+        return int(data["org"]), str(data["email"])
+    except (KeyError, ValueError, TypeError):
+        return None
 
 
 def unsubscribe_url(org_id: int, email: str) -> str:

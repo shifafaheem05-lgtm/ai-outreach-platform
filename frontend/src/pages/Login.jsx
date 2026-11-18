@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Loader2, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { errorMessage } from '../api/client'
+import api, { errorMessage } from '../api/client'
 
 export default function Login() {
   const { user, login, register } = useAuth()
@@ -10,6 +10,11 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '', name: '', organization_name: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [canRegister, setCanRegister] = useState(true)
+
+  useEffect(() => {
+    api.get('/auth/config').then((r) => setCanRegister(r.data.allow_registration !== false)).catch(() => {})
+  }, [])
 
   if (user) return <Navigate to="/" replace />
 
@@ -105,7 +110,7 @@ export default function Login() {
             {mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
 
-          <p className="text-center text-sm text-slate-500">
+          {(canRegister || mode === 'register') && <p className="text-center text-sm text-slate-500">
             {mode === 'login' ? 'New here?' : 'Already have an account?'}{' '}
             <button
               type="button"
@@ -117,7 +122,7 @@ export default function Login() {
             >
               {mode === 'login' ? 'Create a workspace' : 'Sign in'}
             </button>
-          </p>
+          </p>}
 
           {import.meta.env.DEV && mode === 'login' && (
             <button

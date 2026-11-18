@@ -165,3 +165,6 @@ Features: industry match, company-size fit, title seniority, email verification 
 - Mailboxes connect via SMTP/IMAP app passwords instead of Gmail OAuth (free, no Google review needed).
 - Reply classification, lead scoring and the assistant are rule-based, with an optional LLM (any OpenAI-compatible endpoint) for writing and research.
 - The assistant has no approve endpoint by design; it cannot send or approve anything.
+- Redis, Celery and scikit-learn from the original plan are not used and have been removed from `requirements.txt` and Docker Compose.
+- JWTs use PyJWT. Each user has a `token_version`; changing the password bumps it and invalidates all earlier access/refresh tokens.
+- The send loop claims each due campaign-lead with an atomic `UPDATE ... WHERE next_send_at <= now` before sending. A transient SMTP failure backs off 15 minutes instead of retrying every tick.

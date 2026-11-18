@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Index,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,6 +47,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="member")  # admin|manager|member
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # bump to revoke all tokens
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     org: Mapped[Organization] = relationship()
 
@@ -64,7 +66,11 @@ class Integration(Base):
 
 class Lead(Base):
     __tablename__ = "leads"
-    __table_args__ = (UniqueConstraint("org_id", "dedupe_key", name="uq_lead_dedupe"),)
+    __table_args__ = (
+        UniqueConstraint("org_id", "dedupe_key", name="uq_lead_dedupe"),
+        Index("ix_leads_org_status", "org_id", "status"),
+        Index("ix_leads_org_score", "org_id", "score"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
     company_name: Mapped[str] = mapped_column(String(255), index=True)
@@ -130,7 +136,10 @@ class Campaign(Base):
 
 class CampaignLead(Base):
     __tablename__ = "campaign_leads"
-    __table_args__ = (UniqueConstraint("campaign_id", "lead_id", name="uq_campaign_lead"),)
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "lead_id", name="uq_campaign_lead"),
+        Index("ix_campaign_leads_due", "state", "next_send_at"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id"), index=True)
     lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id"), index=True)
@@ -156,6 +165,7 @@ class EmailDraft(Base):
 
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (Index("ix_messages_org_dir_sent", "org_id", "direction", "sent_at"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
     lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id"), index=True)

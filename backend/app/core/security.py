@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from cryptography.fernet import Fernet
-from jose import JWTError, jwt
+import jwt
 
 from app.core.config import settings
 
@@ -22,37 +22,39 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def _create_token(subject: str, token_type: str, expires: timedelta) -> str:
+def _create_token(subject: str, token_type: str, expires: timedelta, token_version: int) -> str:
     payload = {
         "sub": subject,
         "type": token_type,
+        "tv": token_version,  # bumped on password change: invalidates every older token
         "exp": datetime.now(timezone.utc) + expires,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, token_version: int = 0) -> str:
     return _create_token(
-        str(user_id), "access", timedelta(minutes=settings.access_token_expire_minutes)
+        str(user_id), "access", timedelta(minutes=settings.access_token_expire_minutes), token_version
     )
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: int, token_version: int = 0) -> str:
     return _create_token(
-        str(user_id), "refresh", timedelta(days=settings.refresh_token_expire_days)
+        str(user_id), "refresh", timedelta(days=settings.refresh_token_expire_days), token_version
     )
 
 
-def decode_token(token: str, expected_type: str) -> int | None:
+def decode_token(token: str, expected_type: str) -> tuple[int, int] | None:
+    """Return (user_id, token_version) for a valid token of the expected type, else None."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-    except JWTError:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM], options={"require": ["exp", "sub"]})
+    except jwt.PyJWTError:
         return None
     if payload.get("type") != expected_type:
         return None
     try:
-        return int(payload["sub"])
-    except (KeyError, ValueError):
+        return int(payload["sub"]), int(payload.get("tv", 0))
+    except (KeyError, ValueError, TypeError):
         return None
 
 

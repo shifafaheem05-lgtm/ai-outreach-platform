@@ -14,6 +14,16 @@ class RegisterIn(BaseModel):
     organization_name: str = Field(min_length=1, max_length=200)
 
 
+class ChangePasswordIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _pw(cls, v: str) -> str:
+        return check_password(v)
+
+
 class LoginIn(BaseModel):
     email: EmailStr
     password: str

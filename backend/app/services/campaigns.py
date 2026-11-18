@@ -8,7 +8,7 @@ import random
 import time
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -25,6 +25,7 @@ from app.services.sending import (
 log = logging.getLogger(__name__)
 MAX_DRAFT_LEADS_PER_CALL = 50
 MAX_SENDS_PER_TICK = 20
+CLAIM_MINUTES = 15  # a claimed row is not retried for this long (covers crashes and transient SMTP errors)
 
 
 class WorkflowError(Exception):
@@ -211,9 +212,25 @@ def process_due(db: Session, org_id: int | None = None) -> dict:
             if hour_left <= 0 or day_left <= 0:
                 stats["waiting"] += 1
                 break
+            # Atomic claim. "Is it due?" is tested inside the UPDATE itself, so when two workers/ticks
+            # race (or this loop holds a stale row another worker already advanced) exactly one wins
+            # and nobody sends twice or sends a follow-up early.
+            original_due = cl.next_send_at
+            claimed = db.execute(
+                update(CampaignLead)
+                .where(CampaignLead.id == cl.id, CampaignLead.state == "active", CampaignLead.next_send_at <= now)
+                .values(next_send_at=utcnow() + timedelta(minutes=CLAIM_MINUTES))
+                .execution_options(synchronize_session=False)  # evaluated by the DB; cl is refreshed below
+            ).rowcount
+            db.commit()
+            if claimed != 1:
+                continue
+            db.refresh(cl)
             lead = db.get(Lead, cl.lead_id)
             draft = db.scalar(select(EmailDraft).where(EmailDraft.campaign_lead_id == cl.id, EmailDraft.step == cl.current_step))
             if not draft or draft.status != "approved":
+                cl.next_send_at = original_due  # nothing to send yet: release the claim
+                db.commit()
                 stats["blocked"] += 1
                 continue
             prev = db.scalar(
@@ -233,6 +250,9 @@ def process_due(db: Session, org_id: int | None = None) -> dict:
                     stats["blocked"] += 1
                     db.commit()
                     continue
+                if exc.kind in ("auth", "limit"):
+                    cl.next_send_at = original_due  # nothing was sent: release the claim
+                    db.commit()
                 if exc.kind == "auth":
                     campaign.status = "paused"
                     audit(db, org.id, None, "campaign.auto_pause", campaign.id, reason=str(exc))

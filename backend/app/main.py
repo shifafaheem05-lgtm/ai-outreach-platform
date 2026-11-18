@@ -12,7 +12,7 @@ from app.api.v1 import (
     analytics, approvals, assistant, auth, campaigns, crm, dashboard, emails, followups, inbox,
     integrations, leads, research, scoring, settings as settings_api, unsubscribe, videos,
 )
-from app.core.config import settings
+from app.core.config import production_problems, settings
 from app.core.logging import setup_logging
 from app.db.seed import seed_demo
 from app.db.session import Base, SessionLocal, engine
@@ -21,8 +21,9 @@ import app.models  # noqa: F401  (register tables)
 setup_logging("DEBUG" if settings.app_env == "development" else "INFO")
 log = logging.getLogger(__name__)
 
-if settings.app_env == "production" and (settings.secret_key.startswith(("change-me", "dev-secret")) or len(settings.secret_key) < 32):
-    raise RuntimeError("Set a long random SECRET_KEY (32+ chars) before running with APP_ENV=production")
+_problems = production_problems(settings)
+if _problems:
+    raise RuntimeError("Refusing to start with APP_ENV=production:\n - " + "\n - ".join(_problems))
 
 
 def _tick() -> None:

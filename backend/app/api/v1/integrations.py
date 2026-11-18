@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_role
+from app.core.netguard import host_is_public
 from app.core.security import encrypt_secret
 from app.models import AuditLog, Campaign, Integration, User
 from app.services.sending import get_credentials, send_smtp
@@ -32,6 +34,16 @@ class IntegrationIn(BaseModel):
     security: str = "ssl"  # ssl | starttls | none
     imap_host: str = ""
     imap_port: int = 993
+
+
+def _check_hosts(cfg: dict) -> None:
+    """In production, mail servers must be public hosts so a manager cannot probe the internal network."""
+    if settings.app_env != "production":
+        return
+    for key, port_key, default in (("smtp_host", "smtp_port", 465), ("imap_host", "imap_port", 993)):
+        host = (cfg.get(key) or "").strip()
+        if host and not host_is_public(host, int(cfg.get(port_key) or default)):
+            raise HTTPException(400, f"{key.replace('_', ' ').upper()} must be a public mail server address")
 
 
 def integration_out(i: Integration) -> dict:
@@ -64,6 +76,9 @@ def create_integration(data: IntegrationIn, user: User = Depends(require_role("m
         raise HTTPException(400, "SMTP host is required")
     if cfg["security"] not in ("ssl", "starttls", "none"):
         raise HTTPException(400, "security must be ssl, starttls or none")
+    if not (1 <= int(cfg["smtp_port"]) <= 65535 and 1 <= int(cfg["imap_port"]) <= 65535):
+        raise HTTPException(400, "Ports must be between 1 and 65535")
+    _check_hosts(cfg)
     cfg["from_email"] = cfg["from_email"] or cfg["username"]
     cfg.pop("preset", None)
     cfg.pop("label", None)
@@ -81,6 +96,7 @@ def create_integration(data: IntegrationIn, user: User = Depends(require_role("m
 def test_integration(integration_id: int, user: User = Depends(require_role("manager")), db: Session = Depends(get_db)):
     integ = _get(db, user, integration_id)
     creds = get_credentials(integ)
+    _check_hosts(creds)
     report: dict = {}
     try:
         ctx = ssl.create_default_context()

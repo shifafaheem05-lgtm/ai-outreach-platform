@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Circle } from 'lucide-react'
-import api from '../api/client'
+import api, { tokenStore } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { Card, ErrorNotice, Notice, Spinner, fmtDate } from '../components/ui'
 
@@ -61,6 +61,35 @@ function Team() {
   )
 }
 
+function Account() {
+  const { user } = useAuth()
+  const [f, setF] = useState({ current_password: '', new_password: '', confirm: '' })
+  const [mismatch, setMismatch] = useState(false)
+  const change = useMutation({
+    mutationFn: async () => (await api.post('/auth/change-password', { current_password: f.current_password, new_password: f.new_password })).data,
+    onSuccess: (tokens) => { tokenStore.set(tokens); setF({ current_password: '', new_password: '', confirm: '' }) },
+  })
+  const submit = (e) => {
+    e.preventDefault()
+    const bad = f.new_password !== f.confirm
+    setMismatch(bad)
+    if (!bad) change.mutate()
+  }
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  return (
+    <Card title="Your account">
+      <p className="mb-3 text-xs text-slate-500">Signed in as {user.name} ({user.email}). Changing your password signs you out of all other devices.</p>
+      <form className="grid gap-3 sm:grid-cols-3" onSubmit={submit}>
+        <div><label className="label" htmlFor="pw-c">Current password</label><input id="pw-c" className="input" type="password" required autoComplete="current-password" value={f.current_password} onChange={set('current_password')} /></div>
+        <div><label className="label" htmlFor="pw-n">New password</label><input id="pw-n" className="input" type="password" required minLength={8} autoComplete="new-password" value={f.new_password} onChange={set('new_password')} /></div>
+        <div><label className="label" htmlFor="pw-r">Repeat new password</label><input id="pw-r" className="input" type="password" required minLength={8} autoComplete="new-password" value={f.confirm} onChange={set('confirm')} /></div>
+        <div className="sm:col-span-3 flex items-center gap-3"><button className="btn-primary" disabled={change.isPending}>Change password</button>{change.isSuccess && <span className="text-sm text-emerald-600">Password changed</span>}</div>
+        <div className="sm:col-span-3 space-y-2">{mismatch && <Notice kind="error">The two new passwords do not match.</Notice>}<p className="text-xs text-slate-500">At least 8 characters with a letter and a number.</p><ErrorNotice error={change.error} /></div>
+      </form>
+    </Card>
+  )
+}
+
 function Audit() {
   const log = useQuery({ queryKey: ['audit'], queryFn: async () => (await api.get('/settings/audit')).data })
   return (
@@ -78,6 +107,7 @@ export default function Settings() {
     <div className="grid gap-6 xl:grid-cols-3">
       <div className="space-y-6 xl:col-span-2">
         <OrgForm manager={manager} />
+        <Account />
         {manager && <Team />}
         {user.role === 'admin' && <Audit />}
       </div>

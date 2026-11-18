@@ -1,7 +1,8 @@
 import os
 
 # Must be set before the app (and its cached settings) is imported.
-os.environ["DATABASE_URL"] = "sqlite:///./test_suite.db"
+# Set TEST_DATABASE_URL to run the suite against an EMPTY PostgreSQL database instead of SQLite.
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test_suite.db")
 os.environ["SEED_DEMO_DATA"] = "true"
 os.environ["ENABLE_SCHEDULER"] = "false"
 os.environ["SEND_DELAY_MIN"] = "0"
@@ -19,7 +20,8 @@ def client():
 
     with TestClient(app) as c:
         yield c
-    try:
-        os.remove("test_suite.db")
-    except OSError:
-        pass
+    if os.environ["DATABASE_URL"].startswith("sqlite"):
+        try:
+            os.remove("test_suite.db")
+        except OSError:
+            pass
