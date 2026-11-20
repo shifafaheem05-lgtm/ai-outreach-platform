@@ -8,3 +8,5 @@ frontend/dist/
 *.db-wal
 *.db-shm
 *.db-journal
+
+backend/.env
