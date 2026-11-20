@@ -1,0 +1,14 @@
+# Keep local secrets, databases and build junk out of the image
+.git
+.github
+**/.env
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+frontend/dist
+docs
+scripts

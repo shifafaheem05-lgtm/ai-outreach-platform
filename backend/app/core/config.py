@@ -1,10 +1,32 @@
 from functools import lru_cache
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parents[2]  # the folder that contains app/, alembic/ and .env
+
+
+def anchor_sqlite_url(url: str) -> str:
+    """Make a relative SQLite file path independent of the folder the command was started from.
+
+    sqlite:///./dev.db  ->  sqlite:///<backend folder>/dev.db
+    Absolute paths (POSIX or Windows) and in-memory databases are left unchanged. Other databases are untouched.
+    """
+    prefix = "sqlite:///"
+    if not url.startswith(prefix):
+        return url
+    path = url[len(prefix):]
+    if not path or path.startswith(":memory:") or path.startswith("file:"):
+        return url
+    if PurePosixPath(path).is_absolute() or PureWindowsPath(path).is_absolute():
+        return url
+    return prefix + (BACKEND_DIR / path).resolve().as_posix()
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Absolute path: `.env` is found no matter which folder uvicorn/alembic/pytest is started from.
+    model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", extra="ignore")
 
     app_env: str = "development"
     secret_key: str = "dev-secret-change-me-not-for-production"
@@ -13,7 +35,6 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 14
     cors_origins: str = "http://localhost:5173"
     database_url: str = "sqlite:///./dev.db"
-    redis_url: str = "redis://localhost:6379/0"
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
@@ -26,6 +47,11 @@ class Settings(BaseSettings):
     send_delay_max: float = 60.0
     login_max_failures: int = 5  # per IP+email per 15 minutes
     allow_registration: bool = True  # set false on private deployments; admins then add users in Settings
+
+    @field_validator("database_url")
+    @classmethod
+    def _anchor_sqlite(cls, v: str) -> str:
+        return anchor_sqlite_url(v)
 
     @property
     def cors_origin_list(self) -> list[str]:

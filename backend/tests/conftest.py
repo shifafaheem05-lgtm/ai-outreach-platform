@@ -10,6 +10,13 @@ from pathlib import Path
 # Set TEST_DATABASE_URL to run the suite against an EMPTY PostgreSQL database instead.
 _db_file = Path(tempfile.gettempdir()) / f"aop_test_{uuid.uuid4().hex}.db"
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_db_file.as_posix()}"
+# Pin everything a developer's own backend/.env could change, so tests never depend on (or touch) it.
+os.environ["APP_ENV"] = "development"
+os.environ["ALLOW_REGISTRATION"] = "true"
+os.environ["AUTO_CREATE_TABLES"] = "true"
+os.environ["ENCRYPTION_KEY"] = ""
+os.environ["LOGIN_MAX_FAILURES"] = "5"
+os.environ["PUBLIC_BASE_URL"] = "http://localhost:8000"
 os.environ["SEED_DEMO_DATA"] = "true"
 os.environ["ENABLE_SCHEDULER"] = "false"
 os.environ["SEND_DELAY_MIN"] = "0"

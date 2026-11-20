@@ -38,3 +38,12 @@ Baseline: commit "Baseline: original upload". See `PROJECT_ANALYSIS.md` for the 
 - No frontend unit tests; UI is covered by the browser smoke script, which is not run by CI (needs a running server).
 - Email checks confirm the domain accepts mail, not that the mailbox exists.
 - Not added on purpose: notifications, websockets/real-time, extra analytics. They would not close a real gap in this app.
+
+## Local development mode (SQLite, no Docker, no PostgreSQL)
+- `backend/.env.example` (new): local template, SQLite, no secrets. `backend/scripts/make_env.py` (new) creates `backend/.env` with fresh random `SECRET_KEY` / `ENCRYPTION_KEY` and never overwrites an existing file.
+- The old root `.env.example` (which defaulted to PostgreSQL) is now `.env.production.example`, with placeholders only.
+- `app/core/config.py`: `.env` and relative SQLite paths are anchored to the backend folder (no stray `dev.db` when started from another folder); unused `redis_url` removed. Production validation is unchanged: SQLite, demo data, weak/missing keys and localhost URLs are still refused.
+- `app/db/session.py`: SQLite gets `foreign_keys=ON`, WAL, `busy_timeout` (behaves like PostgreSQL, no "database is locked" with the background sender); clear error if tables are missing.
+- `alembic/env.py`: batch mode on SQLite only. `app/main.py`: calls the table check on start-up.
+- Tests: 22 new (`tests/test_local_dev.py`), `conftest.py` pins settings so a developer's own `.env` can never affect tests. SQLite 98 passed; PostgreSQL 96 passed + 2 SQLite-only skipped. README steps replayed in a fresh copy (path with spaces): migrations, start from the wrong folder, demo login, register, encrypted mailbox, browser E2E 30/30.
+- `.dockerignore` (new) keeps `.env`, databases and venvs out of the Docker image.

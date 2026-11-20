@@ -29,8 +29,10 @@ ai-outreach-pro/
 ├── README.md
 ├── ARCHITECTURE.md
 ├── docker-compose.yml
-├── .env.example
+├── .env.production.example          # PostgreSQL production template
 ├── backend/
+│   ├── .env.example                 # local development template (SQLite)
+│   ├── scripts/make_env.py          # creates backend/.env with random secrets
 │   ├── requirements.txt
 │   ├── alembic.ini
 │   ├── alembic/

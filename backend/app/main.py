@@ -15,7 +15,7 @@ from app.api.v1 import (
 from app.core.config import production_problems, settings
 from app.core.logging import setup_logging
 from app.db.seed import seed_demo
-from app.db.session import Base, SessionLocal, engine
+from app.db.session import Base, SessionLocal, check_schema_ready, engine
 import app.models  # noqa: F401  (register tables)
 
 setup_logging("DEBUG" if settings.app_env == "development" else "INFO")
@@ -44,6 +44,7 @@ def _tick() -> None:
 async def lifespan(app: FastAPI):
     if settings.auto_create_tables:  # production with Postgres should use `alembic upgrade head` instead
         Base.metadata.create_all(bind=engine)
+    check_schema_ready(engine)
     if settings.seed_demo_data:
         with SessionLocal() as db:
             seed_demo(db)
