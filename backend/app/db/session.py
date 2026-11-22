@@ -6,7 +6,8 @@ from app.core.config import settings
 
 IS_SQLITE = settings.database_url.startswith("sqlite")
 connect_args = {"check_same_thread": False} if IS_SQLITE else {}
-engine = create_engine(settings.database_url, connect_args=connect_args, pool_pre_ping=True)
+# pool_pre_ping + pool_recycle: serverless Postgres (e.g. Neon) suspends idle compute and drops old connections
+engine = create_engine(settings.database_url, connect_args=connect_args, pool_pre_ping=True, **({} if IS_SQLITE else {"pool_recycle": 280}))
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

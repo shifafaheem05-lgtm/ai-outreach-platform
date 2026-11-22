@@ -22,6 +22,10 @@ export const tokenStore = {
 
 const api = axios.create({ baseURL: '/api/v1' })
 
+// Static GitHub Pages build: answer from bundled sample data instead of a server (dead code in normal builds).
+export const STATIC_PREVIEW = import.meta.env.VITE_STATIC_DEMO === 'true'
+if (STATIC_PREVIEW) api.defaults.adapter = (config) => import('../demo/mockApi.js').then((m) => m.mockAdapter(config))
+
 api.interceptors.request.use((config) => {
   if (tokenStore.access) config.headers.Authorization = `Bearer ${tokenStore.access}`
   return config

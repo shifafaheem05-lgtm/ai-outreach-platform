@@ -190,6 +190,8 @@ def in_send_window(schedule: dict, now) -> bool:
 def process_due(db: Session, org_id: int | None = None) -> dict:
     """Send everything that is due. Safe to call repeatedly (scheduler tick or manual)."""
     stats = {"sent": 0, "bounced": 0, "blocked": 0, "waiting": 0}
+    if settings.demo_mode:  # the public demo never sends real mail
+        return stats
     now = utcnow()
     q = select(Campaign).where(Campaign.status == "running")
     if org_id:

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.demo import forbid_in_demo
 from app.core.deps import get_current_user, get_db, require_role
 from app.core.netguard import host_is_public
 from app.core.security import encrypt_secret
@@ -71,6 +72,7 @@ def list_integrations(user: User = Depends(get_current_user), db: Session = Depe
 
 @router.post("", status_code=201)
 def create_integration(data: IntegrationIn, user: User = Depends(require_role("manager")), db: Session = Depends(get_db)):
+    forbid_in_demo("Connecting or testing a mailbox")
     cfg = {**data.model_dump(), **PRESETS.get(data.preset, {})}
     if not cfg["smtp_host"]:
         raise HTTPException(400, "SMTP host is required")
@@ -94,6 +96,7 @@ def create_integration(data: IntegrationIn, user: User = Depends(require_role("m
 
 @router.post("/{integration_id}/test")
 def test_integration(integration_id: int, user: User = Depends(require_role("manager")), db: Session = Depends(get_db)):
+    forbid_in_demo("Connecting or testing a mailbox")
     integ = _get(db, user, integration_id)
     creds = get_credentials(integ)
     _check_hosts(creds)
@@ -132,6 +135,7 @@ def test_integration(integration_id: int, user: User = Depends(require_role("man
 
 @router.post("/{integration_id}/send-test")
 def send_test(integration_id: int, user: User = Depends(require_role("manager")), db: Session = Depends(get_db)):
+    forbid_in_demo("Connecting or testing a mailbox")
     """Send a plain test message to the signed-in user's own address."""
     from email.message import EmailMessage
 

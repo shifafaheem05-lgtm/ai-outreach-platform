@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 _problems = production_problems(settings)
 if _problems:
-    raise RuntimeError("Refusing to start with APP_ENV=production:\n - " + "\n - ".join(_problems))
+    raise RuntimeError("Refusing to start because of unsafe configuration:\n - " + "\n - ".join(_problems))
 
 
 def _tick() -> None:
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     if settings.auto_create_tables:  # production with Postgres should use `alembic upgrade head` instead
         Base.metadata.create_all(bind=engine)
     check_schema_ready(engine)
-    if settings.seed_demo_data:
+    if settings.seed_demo_data or settings.demo_mode:
         with SessionLocal() as db:
             seed_demo(db)
     scheduler = None

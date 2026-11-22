@@ -11,10 +11,26 @@ export default function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [canRegister, setCanRegister] = useState(true)
+  const [demo, setDemo] = useState(null)  // { email, password, preview } when the server runs in public-demo mode
 
   useEffect(() => {
-    api.get('/auth/config').then((r) => setCanRegister(r.data.allow_registration !== false)).catch(() => {})
+    api.get('/auth/config').then((r) => {
+      setCanRegister(r.data.allow_registration !== false)
+      if (r.data.demo_mode) setDemo({ email: r.data.demo_email, password: r.data.demo_password, preview: !!r.data.static_preview })
+    }).catch(() => {})
   }, [])
+
+  const tryDemo = async () => {
+    setError('')
+    setBusy(true)
+    try {
+      await login(demo.email, demo.password)
+    } catch (err) {
+      setError(errorMessage(err, 'Could not open the demo'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (user) return <Navigate to="/" replace />
 
@@ -109,6 +125,20 @@ export default function Login() {
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
+
+          {demo && mode === 'login' && (
+            <div className="rounded-xl border border-brand-200 bg-brand-50 p-3.5 text-sm dark:border-brand-700/40 dark:bg-brand-900/20">
+              <p className="font-medium text-brand-800 dark:text-brand-200">Public demo with sample data</p>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                {demo.preview
+                  ? 'Interactive preview with sample data. Browse every page; actions that change data are switched off. The full app runs from the GitHub repo.'
+                  : 'Look around with the shared demo account, or create your own workspace and try it with your own leads. Sending real email is turned off here.'}
+              </p>
+              <button type="button" className="btn-secondary mt-2.5 w-full" disabled={busy} onClick={tryDemo}>
+                Try the demo (no sign-up)
+              </button>
+            </div>
+          )}
 
           {(canRegister || mode === 'register') && <p className="text-center text-sm text-slate-500">
             {mode === 'login' ? 'New here?' : 'Already have an account?'}{' '}

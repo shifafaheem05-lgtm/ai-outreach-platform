@@ -2,10 +2,11 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.demo import DEMO_EMAIL, DEMO_PASSWORD, MAX_DEMO_USERS, forbid_demo_account
 from app.core.deps import get_current_user, get_db
 from app.core.security import (
     create_access_token,
@@ -59,7 +60,10 @@ def _authenticate(db: Session, email: str, password: str, ip: str = "") -> User:
 @router.get("/config")
 def public_config():
     """Public, non-sensitive switches the login page needs."""
-    return {"allow_registration": settings.allow_registration}
+    out = {"allow_registration": settings.allow_registration, "demo_mode": settings.demo_mode}
+    if settings.demo_mode:  # the demo login is public by design
+        out["demo_email"], out["demo_password"] = DEMO_EMAIL, DEMO_PASSWORD
+    return out
 
 
 @router.post("/register", response_model=TokenOut, status_code=201)
@@ -69,6 +73,8 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     email = data.email.lower()
     if db.scalar(select(User).where(User.email == email)):
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    if settings.demo_mode and (db.scalar(select(func.count()).select_from(User)) or 0) >= MAX_DEMO_USERS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "The demo has reached its sign-up limit. Please use the shared demo login.")
     org = Organization(name=data.organization_name, sender_name=data.name)
     db.add(org)
     db.flush()
@@ -114,6 +120,7 @@ def me(user: User = Depends(get_current_user)):
 @router.post("/change-password", response_model=TokenOut)
 def change_password(data: ChangePasswordIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Change the signed-in user's password. Every other session is signed out; this one gets fresh tokens."""
+    forbid_demo_account(user, "Changing the password")
     if not verify_password(data.current_password, user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
     if data.new_password == data.current_password:

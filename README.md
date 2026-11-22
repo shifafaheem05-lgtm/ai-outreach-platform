@@ -4,6 +4,21 @@ AI-assisted B2B outreach platform: lead discovery, website research, lead scorin
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the design, schema, API plan and roadmap.
 
+## Demo
+
+[Watch the 50-second walkthrough](docs/demo.mp4) (recorded against the app running with the built-in sample data; no real people or emails are shown).
+
+| | |
+|---|---|
+| ![Dashboard](docs/screenshots/01-dashboard.jpg) | ![CRM](docs/screenshots/02-crm.jpg) |
+| **Dashboard**: pipeline, reply rate, email activity | **CRM**: lead profile, conversation, notes, export |
+| ![Lead scoring](docs/screenshots/03-lead-scoring.jpg) | ![Campaigns](docs/screenshots/04-campaigns.jpg) |
+| **Lead scoring**: Hot / Warm / Cold tiers | **Campaigns**: nothing sends without manager approval |
+| ![Analytics](docs/screenshots/07-analytics.jpg) | ![Settings](docs/screenshots/09-settings.jpg) |
+| **Analytics** | **Settings**: password change, session revocation |
+
+To try it yourself, follow the local setup below. With `SEED_DEMO_DATA=true` you can sign in as `demo@aioutreach.pro` / `Demo1234!` (local development only; the app refuses to start in production with the demo account enabled).
+
 ## Status
 
 | Phase | Scope | Status |
@@ -91,6 +106,24 @@ pytest -q                          # uses its own throw-away SQLite file, never 
 | Changed `ENCRYPTION_KEY` and saved mailboxes stopped working | Restore the old key in `.env`, or re-enter the mailbox passwords on the Integrations page. |
 
 macOS/Linux: same steps with `source .venv/bin/activate` and `/` paths.
+
+## Live preview (GitHub Pages, no server)
+
+**https://shifafaheem05-lgtm.github.io/ai-outreach-platform/**: the React app running on bundled sample data, always on and free. Click **Try the demo** and browse every page, search leads, open lead profiles and generate sample emails. Actions that change data are switched off in this preview (it has no backend), so use the local setup below for the full app.
+
+How it works: `VITE_STATIC_DEMO=true` swaps the HTTP layer for a mock adapter (`frontend/src/demo/mockApi.js`) that serves responses captured from the real backend (`node frontend/scripts/capture-demo-fixtures.mjs`). It is compiled out of normal builds. The workflow `.github/workflows/pages.yml` publishes it; enable it once under **Settings -> Pages -> Source: GitHub Actions**.
+
+## Public demo (free, recruiters can open it any time)
+
+`DEMO_MODE=true` turns the app into a safe public showcase:
+
+- the login page offers **Try the demo (no sign-up)**, or visitors can **create their own workspace** and use it;
+- sample data is loaded on first start (never duplicated). With a hosted PostgreSQL database, accounts and data are kept across restarts; with the throwaway SQLite option a restart resets everything;
+- real email is never sent and mailboxes cannot be connected (the shared demo account also cannot change its password or users);
+- sign-ups are capped (300 users) and the app refuses to start without a strong `SECRET_KEY`;
+- it cannot be combined with `APP_ENV=production`, so the production safety checks are unchanged.
+
+Settings are in [`.env.demo.example`](.env.demo.example). Deploy the repo's `Dockerfile` to any host that runs Docker images from GitHub (for example Render's free web service) and set those variables. Free hosts put idle apps to sleep; the first visit after a pause takes up to about a minute to wake it. To keep visitors' data, create a free PostgreSQL database (for example at neon.com; its free plan keeps data while compute sleeps, with a 1 GB limit) and use its connection string as `DATABASE_URL` (see `.env.demo.example`). Do not set `OPENAI_API_KEY` on a public demo.
 
 ## Deployment (Docker, PostgreSQL)
 

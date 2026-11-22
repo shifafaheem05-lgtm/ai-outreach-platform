@@ -21,8 +21,7 @@ from app.models import (
 
 log = logging.getLogger(__name__)
 
-DEMO_EMAIL = "demo@aioutreach.pro"
-DEMO_PASSWORD = "Demo1234!"
+from app.core.demo import DEMO_EMAIL, DEMO_PASSWORD  # noqa: E402
 
 INDUSTRIES = ["Marketing Agency", "SaaS", "E-commerce", "Consulting", "Real Estate", "Healthcare IT"]
 LOCATIONS = ["Austin, TX", "New York, NY", "Denver, CO", "Chicago, IL", "Seattle, WA", "Miami, FL"]

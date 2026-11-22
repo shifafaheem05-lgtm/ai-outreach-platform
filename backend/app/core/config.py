@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     send_delay_max: float = 60.0
     login_max_failures: int = 5  # per IP+email per 15 minutes
     allow_registration: bool = True  # set false on private deployments; admins then add users in Settings
+    demo_mode: bool = False  # public demo: sample data, shared demo login, no real sending, no mailbox connections
 
     @field_validator("database_url")
     @classmethod
@@ -60,9 +61,14 @@ class Settings(BaseSettings):
 
 def production_problems(cfg: "Settings") -> list[str]:
     """Misconfigurations that must stop the app from starting with APP_ENV=production."""
-    if cfg.app_env != "production":
-        return []
     problems = []
+    if cfg.demo_mode:
+        if cfg.app_env == "production":
+            problems.append("DEMO_MODE is for public demos only; it cannot be combined with APP_ENV=production")
+        if cfg.secret_key.startswith(("change-me", "dev-secret")) or len(cfg.secret_key) < 32:
+            problems.append("SECRET_KEY must be a long random string (32+ characters) because a demo is reachable from the internet")
+    if cfg.app_env != "production":
+        return problems
     if cfg.secret_key.startswith(("change-me", "dev-secret")) or len(cfg.secret_key) < 32:
         problems.append("SECRET_KEY must be a long random string (32+ characters)")
     if not cfg.encryption_key:

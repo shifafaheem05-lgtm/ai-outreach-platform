@@ -79,9 +79,9 @@ def test_unsubscribe_token_rejects_access_tokens_and_garbage(client):
 
 
 def test_registration_can_be_disabled(client, monkeypatch):
-    assert client.get("/api/v1/auth/config").json() == {"allow_registration": True}
+    assert client.get("/api/v1/auth/config").json() == {"allow_registration": True, "demo_mode": False}
     monkeypatch.setattr(settings, "allow_registration", False)
-    assert client.get("/api/v1/auth/config").json() == {"allow_registration": False}
+    assert client.get("/api/v1/auth/config").json() == {"allow_registration": False, "demo_mode": False}
     r = client.post("/api/v1/auth/register", json={"email": "nope@hardening-test.com", "name": "No", "password": "Password123", "organization_name": "Nope"})
     assert r.status_code == 403
     # existing users can still sign in

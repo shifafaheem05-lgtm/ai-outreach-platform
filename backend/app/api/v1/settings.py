@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.demo import forbid_demo_account
 from app.core.deps import get_current_user, get_db, require_role
 from app.core.security import hash_password
 from app.models import AuditLog, Integration, Organization, User
@@ -79,6 +80,7 @@ def list_users(user: User = Depends(require_role("manager")), db: Session = Depe
 
 @router.post("/users", status_code=201)
 def create_user(data: UserIn, user: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    forbid_demo_account(user, "Adding users")
     if data.role not in ("admin", "manager", "member"):
         raise HTTPException(400, "role must be admin, manager or member")
     if db.scalar(select(User.id).where(User.email == data.email.lower())):
@@ -92,6 +94,7 @@ def create_user(data: UserIn, user: User = Depends(require_role("admin")), db: S
 
 @router.patch("/users/{user_id}")
 def patch_user(user_id: int, data: UserPatch, user: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    forbid_demo_account(user, "Editing users")
     target = db.get(User, user_id)
     if not target or target.org_id != user.org_id:
         raise HTTPException(404, "User not found")

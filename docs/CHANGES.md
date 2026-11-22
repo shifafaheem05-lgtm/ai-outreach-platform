@@ -47,3 +47,17 @@ Baseline: commit "Baseline: original upload". See `PROJECT_ANALYSIS.md` for the 
 - `alembic/env.py`: batch mode on SQLite only. `app/main.py`: calls the table check on start-up.
 - Tests: 22 new (`tests/test_local_dev.py`), `conftest.py` pins settings so a developer's own `.env` can never affect tests. SQLite 98 passed; PostgreSQL 96 passed + 2 SQLite-only skipped. README steps replayed in a fresh copy (path with spaces): migrations, start from the wrong folder, demo login, register, encrypted mailbox, browser E2E 30/30.
 - `.dockerignore` (new) keeps `.env`, databases and venvs out of the Docker image.
+
+## Public demo mode
+
+- New `DEMO_MODE` setting (`app/core/demo.py`): demo login offered on the login page, visitors can still create their own workspace, sample data seeded on start.
+- Protections while on: no mailbox connections or test sends, the scheduler/manual send does nothing, the shared demo account cannot change its password or edit users, sign-ups capped at 300, strong `SECRET_KEY` required, refuses `APP_ENV=production`.
+- `/auth/config` now also returns `demo_mode` (and the public demo credentials only when it is on).
+- Frontend: "Try the demo" box on the login page and a "Public demo" banner.
+- 15 new tests (`tests/test_demo_mode.py`); suite is 113 passing on SQLite.
+
+## Static preview for GitHub Pages
+
+- `VITE_STATIC_DEMO=true` build: mock axios adapter + fixtures captured from the real seeded backend, hash routing, relative asset paths. Compiled out of normal builds (verified: no mock code in the regular bundle).
+- Reads, search/filter/pagination, lead profiles, sample email generation and CSV export work; writes are refused with an explanatory message.
+- `.github/workflows/pages.yml` deploys it. Verified in a browser from a sub-path with no backend running: 9 pages, search, lead profile, deep-link reload, zero console errors or failed requests.

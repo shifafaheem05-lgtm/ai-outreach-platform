@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { LogOut, Menu, Moon, Sparkles, Sun, X } from 'lucide-react'
 import { NAV } from '../navigation'
 import { useAuth } from '../context/AuthContext'
+import api from '../api/client'
 
 function SidebarContent({ onNavigate }) {
   return (
@@ -44,6 +45,10 @@ export default function Layout() {
   const [open, setOpen] = useState(false)
   const [dark, setDark] = useState(document.documentElement.classList.contains('dark'))
   const { user, logout } = useAuth()
+  const [demoBanner, setDemoBanner] = useState(null)  // null | 'demo' | 'static'
+  useEffect(() => {
+    api.get('/auth/config').then((r) => setDemoBanner(r.data.static_preview ? 'static' : r.data.demo_mode ? 'demo' : null)).catch(() => {})
+  }, [])
   const location = useLocation()
   const current = NAV.find((n) => (n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to)))
 
@@ -79,6 +84,13 @@ export default function Layout() {
       )}
 
       <div className="lg:pl-64">
+        {demoBanner && (
+          <div className="bg-brand-600 px-4 py-1.5 text-center text-xs font-medium text-white">
+            {demoBanner === 'static'
+              ? 'Interactive preview with sample data. Actions that change data are switched off here; the full app runs from the GitHub repo.'
+              : 'Public demo: sample data, sending real email is disabled.'}
+          </div>
+        )}
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/5 dark:bg-ink-950/80 sm:px-8">
           <button
             aria-label="Open menu"
