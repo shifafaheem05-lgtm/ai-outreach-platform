@@ -39,7 +39,14 @@ export function mockAdapter(config) {
   let m
 
   if (url === '/auth/config') return reply(config, { allow_registration: false, demo_mode: true, static_preview: true, demo_email: 'demo@aioutreach.pro', demo_password: 'Demo1234!' })
-  if (method === 'post' && url === '/auth/login') return reply(config, { access_token: 'static-preview', refresh_token: 'static-preview', token_type: 'bearer' })
+  if (method === 'post' && url === '/auth/login') {
+    let body = {}
+    try { body = typeof config.data === 'string' ? JSON.parse(config.data) : config.data || {} } catch { /* ignore */ }
+    if (String(body.email || '').toLowerCase() !== 'demo@aioutreach.pro' || body.password !== 'Demo1234!') {
+      return reply(config, { detail: 'This preview has no user accounts. Use the "Try the demo" button.' }, 401)
+    }
+    return reply(config, { access_token: 'static-preview', refresh_token: 'static-preview', token_type: 'bearer' })
+  }
   if (method === 'post' && url === '/auth/refresh') return reply(config, { access_token: 'static-preview', refresh_token: 'static-preview', token_type: 'bearer' })
   if (method === 'post' && (m = url.match(/^\/emails\/generate$/))) {
     let body = {}
